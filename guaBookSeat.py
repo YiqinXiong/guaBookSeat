@@ -70,6 +70,9 @@ class SeatBooker():
         except requests.exceptions.ReadTimeout:
             logging.error(f'[{get_now()}] login页面超时无响应')
             exit(-1)
+        except requests.exceptions.SSLError:
+            logging.error(f'[{get_now()}] login页面post错误')
+            exit(-1)
 
         if response.status_code == 200:
             response_data = response.json()
