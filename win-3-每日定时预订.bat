@@ -1,3 +1,3 @@
 @echo off
-schtasks /create /tn "booking" /tr %~dp0\win-2-预约位置.bat /sc DAILY /st 22:01
+schtasks /create /tn "booking" /tr %~dp0\win-2-预约位锟斤拷.bat /sc DAILY /st 22:00
 pause
