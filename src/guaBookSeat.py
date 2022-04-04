@@ -7,7 +7,7 @@ from json import load as json_load
 parent_dir_name = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sh = logging.StreamHandler(sys.stdout)
 fh = logging.FileHandler(os.path.join(parent_dir_name, "guaBookSeat.log"), encoding='utf-8')
-logging.basicConfig(level=logging.INFO, encoding='utf-8', handlers=[sh, fh])
+logging.basicConfig(level=logging.INFO, handlers=[sh, fh])
 
 
 def get_start_time(conf_start_time):
@@ -111,7 +111,7 @@ class SeatBooker():
         if response.status_code == 200:
             response_data = response.json()
             if "data" not in response_data.keys():
-                start_timestr = time.strftime("%m月%d日%H:%M", time.localtime(self.start_time))
+                start_timestr = time.strftime("%m-%d %H:%M", time.localtime(self.start_time))
                 end_timestr = time.strftime("%H:%M", time.localtime(self.start_time + self.duration))
                 logging.error(f'[{get_now()}] <{start_timestr}到{end_timestr}>在你选的教室没有符合条件的座位预约！')
                 exit(-1)
@@ -181,7 +181,7 @@ class SeatBooker():
         
         start_timestamp = int(response_data["content"]["defaultItems"][0]["time"])
         duration_sec = int(response_data["content"]["defaultItems"][0]["duration"])
-        start_timestr = time.strftime("%m月%d日%H:%M", time.localtime(start_timestamp))
+        start_timestr = time.strftime("%m-%d %H:%M", time.localtime(start_timestamp))
         end_timestr = time.strftime("%H:%M", time.localtime(start_timestamp + duration_sec))
         seat_num = response_data["content"]["defaultItems"][0]["seatNum"]
         room_name = response_data["content"]["defaultItems"][0]["roomName"]
