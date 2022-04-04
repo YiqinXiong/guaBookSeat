@@ -1,6 +1,7 @@
 from tkinter import *
 from tkinter import ttk, messagebox
 from json import dump as json_dump
+from json import load as json_load
 import os
 
 content_id_map = {
@@ -11,6 +12,14 @@ content_id_map = {
 }
  
 if __name__ == '__main__':
+    # 如果已有配置文件则读取原配置
+    try:
+        with open('config.json', 'r') as fp:
+            conf = json_load(fp)
+    except FileNotFoundError:
+        print("无配置文件，重新生成")
+        conf = None
+
     root = Tk()
     root.title("gua的抢座位神器")
     root.geometry("360x240")
@@ -19,11 +28,15 @@ if __name__ == '__main__':
     username_label = Label(root, text='学号：')
     username_label.grid(row=0, column=0)
     username = Entry(root, width=25)
+    if conf:
+        username.insert(0, conf['username'])
     username.grid(row=0, column=1, padx=10, pady=5)
     # 密码
     password_label = Label(root, text='密码：')
     password_label.grid(row=1, column=0)
     password = Entry(root, show='*', width=25)
+    if conf:
+        password.insert(0, conf['password'])
     password.grid(row=1, column=1, padx=10, pady=5)
     # 自习室
     room_label = Label(root, text='自习室：')
@@ -32,6 +45,10 @@ if __name__ == '__main__':
     room['value'] = ('二楼南自习室(201)', '二楼北自习室(202)', '三楼南自习室(301)', '三楼北自习室(302)')
     room['state'] = 'readonly'
     room.current(0)
+    if conf:
+        room.current(
+            [x for x in range(len(content_id_map)) if list(content_id_map.values())[x]==conf['content_id']][0]
+        )
     room.grid(row=2, column=1, padx=10, pady=5)
     # 开始时间
     start_time_label = Label(root, text='开始时间：')
@@ -53,7 +70,10 @@ if __name__ == '__main__':
     seat_id_label = Label(root, text='预期座位号（0表示随机）：')
     seat_id_label.grid(row=5, column=0)
     seat_id = Entry(root, width=25)
-    seat_id.insert(0, "0")
+    if conf:
+        seat_id.insert(0, str(conf['seat_id']))
+    else:
+        seat_id.insert(0, "0")
     seat_id.grid(row=5, column=1, padx=10, pady=5)
     # 保存按钮
     def save():

@@ -106,6 +106,16 @@ class SeatBooker():
         
         if response.status_code == 200:
             response_data = response.json()
+            if "data" not in response_data.keys():
+                start_timestr = time.strftime("%m月%d日%H:%M", time.localtime(self.start_time))
+                end_timestr = time.strftime("%H:%M", time.localtime(self.start_time + self.duration))
+                logging.error(f'[{get_now()}] <{start_timestr}到{end_timestr}>在你选的教室没有符合条件的座位预约！')
+                exit(-1)
+            # 按照系统可用的时间更新预定时间
+            valid_start_time = int(response_data["content"]["children"][0]["date"])
+            valid_duration = int(response_data["content"]["children"][0]["time"])
+            self.start_time = valid_start_time
+            self.duration = valid_duration
             # seat_id==0 听从系统推荐
             if self.seat_id == 0:
                 self.target_seat = response_data["data"]["bestPairSeats"]["seats"][0]["id"]
@@ -145,8 +155,11 @@ class SeatBooker():
 
         if response_data["CODE"] == "ok":
             logging.info(f'[{get_now()}] 估计不出意外是抢上宝座了！')
+        elif response_data["CODE"] == "ParamError":
+            logging.error(f'[{get_now()}] {response_data["MESSAGE"]}')
+            exit(-1)
         else:
-            logging.error(f'[{get_now()}] GG，预约失败')
+            logging.error(f'[{get_now()}] GG，不明原因预约失败')
             exit(-1)
     
 
