@@ -1,8 +1,10 @@
+import os, sys
 from tkinter import *
 from tkinter import ttk, messagebox
 from json import dump as json_dump
 from json import load as json_load
-import os
+
+parent_dir_name = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 content_id_map = {
     '二楼南自习室(201)' : 36,
@@ -14,7 +16,7 @@ content_id_map = {
 if __name__ == '__main__':
     # 如果已有配置文件则读取原配置
     try:
-        with open('config.json', 'r') as fp:
+        with open(os.path.join(parent_dir_name, "config.json"), 'r') as fp:
             conf = json_load(fp)
     except FileNotFoundError:
         print("无配置文件，重新生成")
@@ -91,7 +93,7 @@ if __name__ == '__main__':
                 'category_id': 591,
             }
             print(config_map)
-            with open('config.json', 'w') as fp:
+            with open(os.path.join(parent_dir_name, "config.json"), 'w') as fp:
                 json_dump(config_map, fp)
         except ValueError:
             messagebox.showerror('错误', '输入了非数字，程序退出')

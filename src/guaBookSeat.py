@@ -1,10 +1,14 @@
-import os
+import os, sys
 import requests
 import logging
 import time, datetime
 from json import load as json_load
 
-logging.basicConfig(level=logging.INFO, filename="guaBookSeat.log", encoding='utf-8')
+parent_dir_name = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sh = logging.StreamHandler(sys.stdout)
+fh = logging.FileHandler(os.path.join(parent_dir_name, "guaBookSeat.log"), encoding='utf-8')
+logging.basicConfig(level=logging.INFO, encoding='utf-8', handlers=[sh, fh])
+
 
 def get_start_time(conf_start_time):
     # 获取今日0点时间戳
@@ -20,10 +24,10 @@ def get_now():
 class SeatBooker():
     def __init__(self) -> None:
         try:
-            with open('config.json', 'r') as fp:
+            with open(os.path.join(parent_dir_name, "config.json"), 'r') as fp:
                 conf = json_load(fp)
         except FileNotFoundError:
-            logging.error("无配置文件，请先使用 \"python3 create_config.py\" 生成配置文件")
+            logging.error("无配置文件，请先使用“修改参数”脚本生成配置文件")
             exit(-1)
         # 读取参数配置
         self.username = conf['username']
