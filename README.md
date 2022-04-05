@@ -1,7 +1,7 @@
 # guaBookSeat
 LTH的图书馆预约机，用于JXNU的图书馆座位预约。
 
-很简单的抓包 + python requests库实现。
+很简单的抓包 + python requests模块实现。
 
 ## 用法
 
@@ -14,14 +14,15 @@ LTH的图书馆预约机，用于JXNU的图书馆座位预约。
   - Windows：命令提示符窗口输入 `pip3 install requests`
   - Mac：命令提示符窗口输入 `pip3 install requests`
   - 若出现网络错误：尝试 `pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple requests`
-
-- 在右侧Release处下载压缩包
-  - Windows：下载 `guaBookSeat_Win.zip`
-  - Mac：下载 `guaBookSeat_Mac.zip`
+- 下载本工具
+  - Windows
+    - 在右侧Release处下载 `guaBookSeat_Win.zip`即可
+  - Mac：
+    - `git clone https://github.com/YiqinXiong/guaBookSeat.git guaBookSeat_Mac`
 
 ### Windows用户
 
-1. **解压压缩包，进入 `guaBookSeat_Win` 文件夹**
+1. **解压 `guaBookSeat_Win.zip`，进入 `guaBookSeat_Win` 文件夹**
 
 2. **按照下面的说明使用脚本文件，双击运行**
 
@@ -34,12 +35,12 @@ LTH的图书馆预约机，用于JXNU的图书馆座位预约。
 
 ### Mac用户
 
-1. **解压压缩包**
+1. **按照上文，克隆仓库到 `guaBookSeat_Mac` 文件夹**
 
 2. **赋予脚本执行权限**
 
    1. 打开 `终端 (Terminal)`
-   2. 在终端输入`cd`和`一个空格`，再将解压后的文件夹 `guaBookSeat_Mac`拖入终端，然后回车
+   2. 在终端输入`cd`和`一个空格`，再将`git clone`得到的文件夹 `guaBookSeat_Mac`拖入终端，然后回车
    3. 继续输入`chmod +x mac*`，然后回车
    4. 关闭终端
 
@@ -53,7 +54,7 @@ LTH的图书馆预约机，用于JXNU的图书馆座位预约。
 
       <img src="https://xyq6785665.oss-cn-shenzhen.aliyuncs.com/img/1568979-20210906174234821-1959900899.png" alt="img" style="zoom: 50%;" />
 
-   4. 按下快捷键组合`command + shift + G`，在弹出窗口输入框输入`/usr/sbin/cron`，然后回车
+   4. 按下快捷键组合`command + shift + G`，在弹出窗口输入框输入`/usr/sbin`，并选择打开
 
    5. 选择cron，点击打开
 
