@@ -82,7 +82,7 @@ class SeatBooker():
             valid_start_time_delta = min(valid_start_time_delta, start_time_delta_upper_bound)
             valid_start_time_delta = max(valid_start_time_delta, start_time_delta_lower_bound)
             # 限制valid_duration_delta范围
-            duration_delta_upper_bound = get_start_time(22) - (self.start_time + valid_start_time_delta)    #结束时间不超过22点
+            duration_delta_upper_bound = get_start_time(22) - (self.start_time + valid_start_time_delta) - self.duration    #结束时间不超过22点
             valid_duration_delta = min(valid_duration_delta, duration_delta_upper_bound)
             # 检验结果是否可接受
             if self.is_time_affordable(valid_start_time_delta, valid_duration_delta):
