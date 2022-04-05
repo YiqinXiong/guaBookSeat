@@ -2,7 +2,7 @@ import os
 from tkinter import *
 from tkinter import ttk, messagebox
 from json import dump as json_dump
-from my_tool import parent_dir_name, load_json_conf
+from my_tool import parent_dir_name, load_json_conf, replace_python_path
 
 content_id_map = {
     '二楼南自习室(201)' : 36,
@@ -19,10 +19,15 @@ if __name__ == '__main__':
 
     root = Tk()
     root.title("gua的抢座位神器")
-    root.geometry("400x240+600+300")
+    if os.name == 'nt':
+        root.geometry("400x240+600+300")
+        entry_width = 18
+    else:
+        root.geometry("480x270+600+300")
+        entry_width = 17
+        replace_python_path()
     root.resizable(0, 0)
 
-    entry_width = 18
     combobox_width = 15
     short_combo_width = 9
 

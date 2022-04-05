@@ -1,4 +1,4 @@
-import os
+import os, sys
 import time
 import datetime
 from json import load as json_load
@@ -26,4 +26,17 @@ def load_json_conf():
         return conf
     except FileNotFoundError:
         return None
+
+def replace_python_path():
+    python_path = f'\n{sys.executable} '
+    # 修改mac端脚本
+    try:
+        with open(os.path.join(parent_dir_name, "mac-2-预约位置.command"), 'r') as fp:
+            content = fp.read()
+        content = content.replace('\npython3 ', python_path)
+        with open(os.path.join(parent_dir_name, "mac-2-预约位置.command"), 'w') as fp:
+            fp.write(content)
+        return 0
+    except FileNotFoundError:
+        return -1
 
