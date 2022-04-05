@@ -10,7 +10,7 @@ from my_tool import parent_dir_name, load_json_conf, get_start_time, get_start_e
 # logging初始化配置
 sh = logging.StreamHandler(sys.stdout)
 fh = logging.FileHandler(os.path.join(parent_dir_name, "guaBookSeat.log"), encoding='utf-8')
-fmt = "[%(asctime)s] [%(levelname)s] (%(funcName)s line%(lineno)s) %(message)s"
+fmt = "[%(asctime)s] [%(levelname)s] (%(funcName)s line:%(lineno)s) %(message)s"
 logging.basicConfig(level=logging.INFO, handlers=[sh, fh], format=fmt, datefmt="%Y-%m-%d %H:%M:%S")
 
 
@@ -25,6 +25,8 @@ class SeatBookerStatus(Enum):
     UNKNOWN_ERROR = 7
     ALREADY_BOOKED = 8
     LOOP_FAILED = 9
+    LOGIN_FAILED = 10
+    PROXY_ERROR = 11
 
 
 # SeatBooker类
@@ -46,7 +48,10 @@ class SeatBooker():
         self.start_time_delta = 0
         self.duration_delta = 0
         # 建链相关
-        self.session = requests.session()
+        fake_header = {
+            'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.60 Safari/537.36',
+            'Referer':'https://jxnu.huitu.zhishulib.com/'
+        }
         url_home = 'https://jxnu.huitu.zhishulib.com'
         self.urls = {
             'login' : url_home + '/api/1/login',
@@ -55,10 +60,8 @@ class SeatBooker():
             'book_seat' : url_home + '/Seat/Index/bookSeats?LAB_JSON=1',
             'get_my_booking_list' : url_home + '/Seat/Index/myBookingList?LAB_JSON=1'
         }
-        self.fake_header = {
-            'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.60 Safari/537.36',
-            'Referer':'https://jxnu.huitu.zhishulib.com/'
-        }
+        self.session = requests.session()
+        self.session.headers.update(fake_header)
 
     def is_time_affordable(self, start_time_delta, duration_delta):
         # 检查start_time误差，前后波动最多conf['start_time_delta_limit']小时
@@ -69,9 +72,9 @@ class SeatBooker():
         check_3 = (self.duration + duration_delta) >= 3600 * 3
         return check_1 and check_2 and check_3
 
-    def adjust_conf_randomly(self, random_range=0, factor=1):
+    def adjust_conf_randomly(self, random_range=0, factor=1, max_retry_time=100):
         border = round((random_range / 10) * 3600 * factor)
-        retry_time = 100    # 尝试调整最多100次
+        retry_time = max_retry_time    # 尝试调整最多100次
         while retry_time > 0:
             # 随机生成一组调整
             valid_start_time_delta = round(randint(-border, border) / 3600) * 3600
@@ -90,7 +93,7 @@ class SeatBooker():
                 self.duration_delta = valid_duration_delta
                 return
             retry_time -= 1
-        logging.warning(f'自动调整时间失败，已尝试{retry_time}组')
+        logging.warning(f'自动调整时间失败，已尝试{max_retry_time}组')
     
     def login(self):
         data = {
@@ -107,13 +110,13 @@ class SeatBooker():
         }
         # POST login
         try:
-            response = self.session.post(self.urls['login'], json=data, headers=self.fake_header)
+            response = self.session.post(self.urls['login'], json=data, proxies=self.session.proxies)
         except requests.exceptions.ReadTimeout:
             logging.error('login页面超时无响应')
-            exit(-1)
+            return SeatBookerStatus.TIME_OUT
         except requests.exceptions.SSLError:
-            logging.error('login页面post错误')
-            exit(-1)
+            logging.error('login页面post错误，怀疑是代理问题')
+            return SeatBookerStatus.PROXY_ERROR
         # 处理login结果
         if response.status_code == 200:
             response_data = response.json()
@@ -125,9 +128,10 @@ class SeatBooker():
                 nick_name = f'<{response_data["name"]}>'
             logging.info(f'{nick_name}，登录成功！')
             self.uid = response_data["org_score_info"]["uid"]
+            return SeatBookerStatus.SUCCESS
         else:
-            logging.error('登录失败，程序退出，请检查config.json中账号和密码！')
-            exit(-1)
+            logging.error('登录失败，请检查config.json中账号和密码！')
+            return SeatBookerStatus.LOGIN_FAILED
 
     def search_seat(self):
         data = {
@@ -139,7 +143,7 @@ class SeatBooker():
         }
         # POST search_seat
         try:
-            response = self.session.post(self.urls['search_seat'], data=data, headers=self.fake_header)
+            response = self.session.post(self.urls['search_seat'], data=data, proxies=self.session.proxies)
         except requests.exceptions.ReadTimeout:
             logging.error('search_seat页面超时无响应')
             return SeatBookerStatus.TIME_OUT
@@ -204,7 +208,7 @@ class SeatBooker():
         try:
             start_timestr, end_timestr = get_start_end_timestr(data["beginTime"], data["duration"])
             logging.info(f'发起订座申请{data["seats[0]"]}号，{start_timestr}到{end_timestr}')
-            response_data = self.session.post(self.urls['book_seat'], data=data, headers=self.fake_header).json()
+            response_data = self.session.post(self.urls['book_seat'], data=data, proxies=self.session.proxies).json()
         except requests.exceptions.ReadTimeout:
             logging.error('book_seat页面超时无响应')
             return SeatBookerStatus.TIME_OUT
@@ -224,7 +228,7 @@ class SeatBooker():
     def get_my_booking_list(self):
         # GET get_my_booking_list
         try:
-            response_data = self.session.get(self.urls['get_my_booking_list'], headers=self.fake_header).json()
+            response_data = self.session.get(self.urls['get_my_booking_list'], proxies=self.session.proxies).json()
         except requests.exceptions.ReadTimeout:
             logging.error('get_my_booking_list页面超时无响应')
             return SeatBookerStatus.TIME_OUT
@@ -241,13 +245,39 @@ class SeatBooker():
             logging.info(f'已预约！<{start_timestr}到{end_timestr}>在<{room_name}>的<{seat_num}号>座位自习，记得签到！')
             return SeatBookerStatus.SUCCESS
  
+    def loop_login(self, max_failed_time):
+        # 若login失败可以循环重试，每2s一次，最多允许失败max_failed_time次
+        failed_time = 0
+        stat = self.login()
+        while stat != SeatBookerStatus.SUCCESS:
+            failed_time += 1
+            # 失败max_failed_time次以上退出login流程
+            if failed_time > max_failed_time:
+                logging.error(f'login已失败{max_failed_time}次')
+                return SeatBookerStatus.LOOP_FAILED
+            # 2秒重试
+            time.sleep(2)
+            # 如果是PROXY_ERROR，则修改代理
+            if stat == SeatBookerStatus.PROXY_ERROR:
+                proxy = {
+                    'http': 'http://127.0.0.1:7890',
+                    'https': 'http://127.0.0.1:7890',
+                }
+                self.session.proxies.update(proxy)
+                logging.info('已自动修改代理为127.0.0.1:7890，适配clash用户')
+            # 如果是LOGIN_FAILED，则退出登录流程
+            elif stat == SeatBookerStatus.LOGIN_FAILED:
+                return SeatBookerStatus.LOOP_FAILED
+            stat = self.login()
+        return SeatBookerStatus.SUCCESS
+
     def loop_search_seat(self, max_failed_time):
         # 若search_seat失败可以循环重试，每2s一次，最多允许失败max_failed_time次
         failed_time = 0
         stat = self.search_seat()
         while stat != SeatBookerStatus.SUCCESS:
             failed_time += 1
-            # 失败10次以上退出search_seat流程
+            # 失败max_failed_time次以上退出search_seat流程
             if failed_time > max_failed_time:
                 logging.error(f'search_seat已失败{max_failed_time}次')
                 return SeatBookerStatus.LOOP_FAILED
@@ -255,10 +285,10 @@ class SeatBooker():
             time.sleep(2)
             # 无位置时大幅调整预定时间和时长
             if stat == SeatBookerStatus.NO_SEAT:
-                self.adjust_conf_randomly(random_range=failed_time, factor=2.5)
+                self.adjust_conf_randomly(random_range=failed_time, factor=2.5, max_retry_time=200)
             # 系统调整的时间不可接受时小幅调整预定时间和时长
             elif stat == SeatBookerStatus.NOT_AFFORDABLE:
-                self.adjust_conf_randomly(random_range=failed_time, factor=1.5)
+                self.adjust_conf_randomly(random_range=failed_time, factor=1.5, max_retry_time=100)
             stat = self.search_seat()
         return SeatBookerStatus.SUCCESS
 
@@ -272,7 +302,7 @@ class SeatBooker():
             if stat == SeatBookerStatus.ALREADY_BOOKED:
                 logging.info('已有预约，程序结束')
                 exit(0)
-            # 失败3次以上退出程序
+            # 失败max_failed_time次以上退出程序
             if failed_time > max_failed_time:
                 logging.error(f'book_seat已失败{max_failed_time}次')
                 return SeatBookerStatus.LOOP_FAILED
@@ -287,7 +317,7 @@ class SeatBooker():
         stat = self.get_my_booking_list()
         while stat != SeatBookerStatus.SUCCESS:
             failed_time += 1
-            # 失败3次以上退出get_my_booking_list流程
+            # 失败max_failed_time次以上退出get_my_booking_list流程
             if failed_time > max_failed_time:
                 logging.error(f'get_my_booking_list已失败{max_failed_time}次')
                 return SeatBookerStatus.LOOP_FAILED
@@ -307,7 +337,9 @@ if __name__ == "__main__":
     # 实例化
     seat_booker = SeatBooker(conf)
     # login过程
-    seat_booker.login()
+    res_login = seat_booker.loop_login(max_failed_time=3)
+    if res_login == SeatBookerStatus.LOOP_FAILED:
+        exit(-1)
     # 总共尝试10次search_seat和book_seat的过程
     retry_time = 10
     while retry_time > 0:
