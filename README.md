@@ -12,7 +12,7 @@ LTH的图书馆预约机，用于JXNU的图书馆座位预约。
   - Mac：打开 `终端 (Terminal)`，在终端中输入`python3 --version`，正常情况会出现版本信息，例如 `Python 3.9.12`
 - 安装第三方库 requests（安装方法？见下方）
   - Windows：命令提示符窗口输入 `pip3 install requests`
-  - Mac：命令提示符窗口输入 `pip3 install requests`
+  - Mac：终端窗口输入 `pip3 install requests`
   - 若出现网络错误：尝试 `pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple requests`
 - 下载本工具
   - Windows
