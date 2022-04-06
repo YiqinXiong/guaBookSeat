@@ -95,6 +95,23 @@ class SeatBooker():
             retry_time -= 1
         logging.warning(f'自动调整时间失败，已尝试{max_retry_time}组')
     
+    def create_auto_cancel_task(self, start_timestamp):
+        # 创建一个自动取消预订的任务
+        auto_cancel_script_path = os.path.abspath('./src/auto_cancel.py')
+        ddl_t = time.localtime(start_timestamp + 60 * 25)   #开始时间25分钟后如果还没签到就自动取消
+        cancel_time = time.strftime("%H:%M", ddl_t)
+        cancel_date = time.strftime("%Y/%m/%d", ddl_t)
+        if os.name == 'nt':
+            create_auto_cancel_task_cmd = 'SCHTASKS /CREATE /TN "cancel_booking" '
+            create_auto_cancel_task_cmd += f'/TR "cmd /c python3 {auto_cancel_script_path} && pause" '
+            create_auto_cancel_task_cmd += f'/SC ONCE /ST {cancel_time} /SD {cancel_date} /F'
+        else:
+            cancel_cron_time = time.strftime("%M %H %d %m *")
+            create_auto_cancel_task_cmd = f'echo "{cancel_cron_time} {sys.executable} {auto_cancel_script_path}" > {parent_dir_name}/auto_cancel.cfg '
+            create_auto_cancel_task_cmd += f'&& crontab {parent_dir_name}/auto_cancel.cfg '
+            create_auto_cancel_task_cmd += f'&& rm {parent_dir_name}/auto_cancel.cfg'
+        os.system(create_auto_cancel_task_cmd)
+
     def login(self):
         data = {
             "login_name" : self.username,
@@ -120,13 +137,16 @@ class SeatBooker():
         # 处理login结果
         if response.status_code == 200:
             response_data = response.json()
+            if "mobile" not in response_data.keys():
+                logging.error("此账号未绑定手机，无法操作！")
+                return SeatBookerStatus.LOGIN_FAILED
             if response_data["gender"] == "2":
                 nick_name = f'美女<{response_data["name"]}>' if response_data["name"] != "刘庭华" else "<奥黛丽·刘·伊西娅·亦菲·赫本·庭华>"
             elif response_data["gender"] == "1":
                 nick_name = f'帅哥<{response_data["name"]}>'
             else:
                 nick_name = f'<{response_data["name"]}>'
-            logging.info(f'{nick_name}，登录成功！')
+            logging.info(f'{nick_name} ({self.username})，登录成功！')
             self.uid = response_data["org_score_info"]["uid"]
             return SeatBookerStatus.SUCCESS
         else:
@@ -243,7 +263,46 @@ class SeatBooker():
             room_name = response_data["content"]["defaultItems"][0]["roomName"]
             start_timestr, end_timestr = get_start_end_timestr(start_timestamp, duration_sec)
             logging.info(f'已预约！<{start_timestr}到{end_timestr}>在<{room_name}>的<{seat_num}号>座位自习，记得签到！')
+            # 创建一个超时自动取消的任务
+            self.create_auto_cancel_task(start_timestamp)
+            logging.info('已创建定时任务，预约开始25分钟后还没签到就自动取消防止违约，前提是你那时候开着电脑……')
             return SeatBookerStatus.SUCCESS
+    
+    def cancel_booking(self):
+        # 查询预约情况
+        # GET get_my_booking_list
+        try:
+            response_data = self.session.get(self.urls['get_my_booking_list'], proxies=self.session.proxies).json()
+        except requests.exceptions.ReadTimeout:
+            logging.error('get_my_booking_list页面超时无响应')
+            return SeatBookerStatus.TIME_OUT
+        # 处理get_my_booking_list结果
+        if response_data["content"]["defaultItems"][0]["status"] != "0":
+            logging.error('没有可取消的预约？')
+            return SeatBookerStatus.UNKNOWN_ERROR
+        else:
+            booking_id = response_data["content"]["defaultItems"][0]["id"]
+            start_timestamp = int(response_data["content"]["defaultItems"][0]["time"])
+            duration_sec = int(response_data["content"]["defaultItems"][0]["duration"])
+            seat_num = response_data["content"]["defaultItems"][0]["seatNum"]
+            room_name = response_data["content"]["defaultItems"][0]["roomName"]
+            start_timestr, end_timestr = get_start_end_timestr(start_timestamp, duration_sec)
+            logging.info(f'准备取消<{start_timestr}到{end_timestr}>在<{room_name}>的<{seat_num}号>座位预约！')
+        # 开始取消预约
+        cancel_booking_url = f'https://jxnu.huitu.zhishulib.com/Seat/Index/cancelBooking?bookingId={booking_id}&LAB_JSON=1'
+        # POST cancel_booking
+        try:
+            response_data = self.session.post(cancel_booking_url, proxies=self.session.proxies).json()
+        except requests.exceptions.ReadTimeout:
+            logging.error('cancel_booking页面超时无响应')
+            return SeatBookerStatus.TIME_OUT
+        # 处理cancel_booking结果
+        if response_data["CODE"] == "ok":
+            logging.info("已成功取消预约！")
+            return SeatBookerStatus.SUCCESS
+        else:
+            logging.error(response_data["MESSAGE"])
+            return SeatBookerStatus.UNKNOWN_ERROR
  
     def loop_login(self, max_failed_time):
         # 若login失败可以循环重试，每2s一次，最多允许失败max_failed_time次
@@ -358,4 +417,5 @@ if __name__ == "__main__":
         retry_time -= 1
     # 最后获取用户预约信息
     seat_booker.loop_get_my_booking_list(max_failed_time=3)
+    logging.info("--------------感谢使用图书馆自助订座系统   Byebye--------------")
     
