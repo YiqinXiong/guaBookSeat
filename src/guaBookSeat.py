@@ -206,6 +206,10 @@ class SeatBooker():
                     if seat['state'] == 0 or seat['state'] == 2:
                         # state=0表示可选，state=2表示推荐
                         cur_abs = abs(cur_seat_title - self.seat_id)
+                        if cur_abs == 0:
+                            self.target_seat = seat['id']
+                            self.target_seat_title = seat['title']
+                            break   # 与预期座位一致，直接结束查找
                         if cur_abs < min_abs:
                             if min_abs-cur_abs>10 or cur_seat_title%2:
                                 min_abs = cur_abs
