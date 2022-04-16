@@ -2,7 +2,7 @@ import os
 from tkinter import *
 from tkinter import ttk, messagebox
 from json import dump as json_dump
-from my_tool import parent_dir_name, load_json_conf, replace_python_path
+from my_tool import parent_dir_name, load_json_conf, replace_python_path, replace_win_2_path_in_xml
 
 content_id_map = {
     '二楼南自习室(201)' : 36,
@@ -22,6 +22,7 @@ if __name__ == '__main__':
     if os.name == 'nt':
         root.geometry("400x240+600+300")
         entry_width = 18
+        replace_win_2_path_in_xml()
     else:
         root.geometry("480x270+600+300")
         entry_width = 17

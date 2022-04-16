@@ -40,3 +40,16 @@ def replace_python_path():
     except FileNotFoundError:
         return -1
 
+def replace_win_2_path_in_xml():
+    new_command = f'<Command>{parent_dir_name}\\win-2-预约位置.bat</Command>'
+    # 修改xml文件
+    try:
+        with open(os.path.join(parent_dir_name, "booking.xml"), 'r', encoding='gbk') as fp:
+            content = fp.read()
+        content = content.replace('<Command>E:\workspace\guaBookSeat\win-2-预约位置.bat</Command>', new_command)
+        with open(os.path.join(parent_dir_name, "booking.xml"), 'w', encoding='gbk') as fp:
+            fp.write(content)
+        return 0
+    except FileNotFoundError:
+        return -1
+
