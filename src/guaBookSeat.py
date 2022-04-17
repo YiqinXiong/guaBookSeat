@@ -1,7 +1,9 @@
 import os, sys
 import requests
 import logging
+from logging.handlers import TimedRotatingFileHandler
 import time
+import re
 from enum import Enum
 from random import randint
 from my_tool import parent_dir_name, load_json_conf, get_start_time, get_start_end_timestr
@@ -9,9 +11,11 @@ from my_tool import parent_dir_name, load_json_conf, get_start_time, get_start_e
 
 # logging初始化配置
 sh = logging.StreamHandler(sys.stdout)
-fh = logging.FileHandler(os.path.join(parent_dir_name, "guaBookSeat.log"), encoding='utf-8')
+trh = TimedRotatingFileHandler(os.path.join(parent_dir_name, "LOG-guaBookSeat"), encoding='utf-8', backupCount=3, when='MIDNIGHT', interval=1)
+trh.suffix = "%Y-%m-%d.log"
+trh.extMatch = re.compile(r"^\d{4}-\d{2}-\d{2}.log$")
 fmt = "[%(asctime)s] [%(levelname)s] (%(funcName)s line:%(lineno)s) %(message)s"
-logging.basicConfig(level=logging.INFO, handlers=[sh, fh], format=fmt, datefmt="%Y-%m-%d %H:%M:%S")
+logging.basicConfig(level=logging.INFO, handlers=[sh, trh], format=fmt, datefmt="%Y-%m-%d %H:%M:%S")
 
 
 # SeatBooker状态枚举类
@@ -65,12 +69,16 @@ class SeatBooker():
 
     def is_time_affordable(self, start_time_delta, duration_delta):
         # 检查start_time误差，前后波动最多conf['start_time_delta_limit']小时
-        check_1 = abs(start_time_delta) <= self.start_time_delta_limit
+        if abs(start_time_delta) > self.start_time_delta_limit:
+            return False
         # 检查duration误差，前后波动最多conf['duration_delta_limit']小时
-        check_2 = abs(duration_delta) <= self.duration_delta
+        if abs(duration_delta) > self.duration_delta_limit:
+            return False
         # 检查duration，至少要自习3小时
-        check_3 = (self.duration + duration_delta) >= 3600 * 3
-        return check_1 and check_2 and check_3
+        least_duration = 3600 * 3
+        if (self.duration + duration_delta) < least_duration:
+            return False
+        return True
 
     def adjust_conf_randomly(self, random_range=0, factor=1, max_retry_time=100):
         border = round((random_range / 10) * 3600 * factor)
@@ -97,13 +105,13 @@ class SeatBooker():
     
     def create_auto_cancel_task(self, start_timestamp):
         # 创建一个自动取消预订的任务
-        auto_cancel_script_path = os.path.abspath('./src/auto_cancel.py')
+        auto_cancel_script_path = os.path.join(parent_dir_name, "src", "auto_cancel.py")
         ddl_t = time.localtime(start_timestamp + 60 * 25)   #开始时间25分钟后如果还没签到就自动取消
         cancel_time = time.strftime("%H:%M", ddl_t)
         cancel_date = time.strftime("%Y/%m/%d", ddl_t)
         if os.name == 'nt':
             create_auto_cancel_task_cmd = 'SCHTASKS /CREATE /TN "cancel_booking" '
-            create_auto_cancel_task_cmd += f'/TR "cmd /c python3 {auto_cancel_script_path} && pause" '
+            create_auto_cancel_task_cmd += f'/TR "cmd /c python3 {auto_cancel_script_path}" '
             create_auto_cancel_task_cmd += f'/SC ONCE /ST {cancel_time} /SD {cancel_date} /F'
         else:
             cancel_cron_time = time.strftime("%M %H %d %m *")
